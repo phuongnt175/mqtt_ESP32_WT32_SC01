@@ -1,0 +1,1 @@
+This is first Esp32 Project using VS code with PlatformIO Extension
