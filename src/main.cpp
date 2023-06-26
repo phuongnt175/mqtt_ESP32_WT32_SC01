@@ -222,9 +222,10 @@ void callback(char* topic, byte *payload, unsigned int length)
     {
       btnStatus2 = "ON";
       Serial.println(lv_obj_get_state(ui_secondButton));
-      //if(lv_obj_get_state(ui_secondButton) == 2 || lv_obj_get_state(ui_secondButton) == 0)
-      
-      _ui_state_modify(ui_secondButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
+      if(lv_obj_get_state(ui_secondButton) == 2 || lv_obj_get_state(ui_secondButton) == 0)
+      {
+        _ui_state_modify(ui_secondButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
+      }
       Serial.println("Kitchen Room Light ON");
     }
   }
@@ -244,7 +245,7 @@ void callback(char* topic, byte *payload, unsigned int length)
       Serial.println(lv_obj_get_state(ui_thirdButton));
       if(lv_obj_get_state(ui_thirdButton) == 2 || lv_obj_get_state(ui_thirdButton) == 0)
       {
-              _ui_state_modify(ui_thirdButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
+        _ui_state_modify(ui_thirdButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
       }
       Serial.println("Curtain Mode ON");
     }
@@ -265,7 +266,7 @@ void callback(char* topic, byte *payload, unsigned int length)
       Serial.println(lv_obj_get_state(ui_forthButton));
       if(lv_obj_get_state(ui_forthButton) == 2 || lv_obj_get_state(ui_forthButton) == 0)
       {
-              _ui_state_modify(ui_forthButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
+        _ui_state_modify(ui_forthButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
       }
       Serial.println("AC Mode ON");
     }
