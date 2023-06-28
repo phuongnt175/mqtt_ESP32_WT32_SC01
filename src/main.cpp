@@ -1,17 +1,48 @@
+
+ /* File name: main.cpp
+ *
+ * Description:
+ *
+ *
+ * Last Changed By:  $Author: $
+ * Revision:         $Revision: $
+ * Last Changed:     $Date: $June 28, 2023
+ *
+ * Code sample:
+ ******************************************************************************/
+/******************************************************************************/
+/*                              INCLUDE FILES                                 */
+/******************************************************************************/
 #include <lvgl.h>
 #include <lv_conf.h>
-#define LGFX_USE_V1
-#include <LovyanGFX.hpp>
-#include <FT6236.h>
 #include <ui.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <PubSubClient.h>
+#include <main.h>
+
+/******************************************************************************/
+/*                     PRIVATE TYPES and DEFINITIONS                         */
+/******************************************************************************/
 
 #define SDA_FT6236 18
 #define SCL_FT6236 19
-FT6236 ts = FT6236();
 
+#define MQTT_SERVER       "broker.emqx.io"
+#define MQTT_PORT         1883
+
+FT6236 ts = FT6236();
+WiFiClient  wifiClient;
+PubSubClient  client(wifiClient);
+
+/******************************************************************************/
+/*                     EXPORTED TYPES and DEFINITIONS                         */
+/******************************************************************************/
+
+
+/******************************************************************************/
+/*                              PRIVATE DATA                                  */
+/******************************************************************************/
 String btnStatus1 = "OFF";
 String btnStatus2 = "OFF";
 String btnStatus3 = "OFF";
@@ -20,22 +51,21 @@ String btnStatus4 = "OFF";
 const char *ssid = "LUMI_TEST";
 const char *password = "lumivn274!";
 
-#define MQTT_SERVER       "broker.hivemq.com"
-#define MQTT_PORT         1883
-#define MQTT_USER         "gnouhp"
-#define MQTT_PASSWORD     "Phuong98"
-
 const char *MQTT_BTN1_TOPIC = "MQTT_ESP32/BTN1";
 const char *MQTT_BTN2_TOPIC = "MQTT_ESP32/BTN2";
 const char *MQTT_BTN3_TOPIC = "MQTT_ESP32/BTN3";
 const char *MQTT_BTN4_TOPIC = "MQTT_ESP32/BTN4";
 
-WiFiClient  wifiClient;
-PubSubClient  client(wifiClient);
+static int State = 0;
 
-void controlHandler(void);
-void btnHandler(lv_obj_t *ui, String btnStatus, const char *topic);
+static const uint32_t screenWidth  = 480;
+static const uint32_t screenHeight = 320;
+static lv_disp_draw_buf_t draw_buf;
+static lv_color_t buf[ screenWidth * 10 ];
 
+/******************************************************************************/
+/*                              EXPORTED DATA                                 */
+/******************************************************************************/
 extern lv_obj_t * ui_secondButton;
 extern lv_obj_t * ui_firstButton;
 extern lv_obj_t * ui_thirdButton;
@@ -45,81 +75,21 @@ extern lv_obj_t * ui_Screen2;
 extern lv_obj_t * ui_Screen3;
 extern lv_obj_t * ui_Screen4;
 extern lv_obj_t * ui_Colorwheel1;
-class LGFX : public lgfx::LGFX_Device
-{
-lgfx::Panel_ST7796     _panel_instance;
-lgfx::Bus_SPI       _bus_instance;   
-lgfx::Light_PWM     _light_instance;
-
-public:
-  LGFX(void)
-  {
-    { 
-      auto cfg = _bus_instance.config();    
-      cfg.spi_host = VSPI_HOST;    
-      cfg.spi_mode = 0;            
-      cfg.freq_write = 40000000;   //40000000
-      cfg.freq_read  = 16000000;    //16000000
-      cfg.spi_3wire  = false;       
-      cfg.use_lock   = true;        
-      cfg.dma_channel = 1;         
-      cfg.pin_sclk = 14;      //cau hinh chan SPI     
-      cfg.pin_mosi = 13;          
-      cfg.pin_miso = 12;          
-      cfg.pin_dc   = 21;          
-      _bus_instance.config(cfg);    
-      _panel_instance.setBus(&_bus_instance);
-    }
-
-    {
-      auto cfg = _panel_instance.config();   
-      cfg.pin_cs           =    15;  
-      cfg.pin_rst          =    22;  
-      cfg.pin_busy         =    -1;  
-      cfg.memory_width     =   320;  
-      cfg.memory_height    =   480;  
-      cfg.panel_width      =   320;  
-      cfg.panel_height     =   480;  
-      cfg.offset_x         =     0; 
-      cfg.offset_y         =     0;  
-      cfg.offset_rotation  =     0; 
-      cfg.dummy_read_pixel =     8;  
-      cfg.dummy_read_bits  =     1;  
-      cfg.readable         =  true;
-      cfg.invert           = false;    
-      cfg.rgb_order        = false;    
-      cfg.dlen_16bit       = false;  
-      cfg.bus_shared       =  true;  
-
-      _panel_instance.config(cfg);
-    }
-    
-    {  
-      auto cfg = _light_instance.config();
-
-      cfg.pin_bl = 23;
-      cfg.invert = false;
-      cfg.freq   = 44100;
-      cfg.pwm_channel = 7;
-
-      _light_instance.config(cfg);
-      _panel_instance.setLight(&_light_instance);
-    }
-
-    setPanel(&_panel_instance);
-  }
-};
-
-LGFX tft;
 
 extern int brightnessValue;
 
+/******************************************************************************/
+/*                            PRIVATE FUNCTIONS                               */
+/******************************************************************************/
 
-/*Change to your screen resolution*/
-static const uint32_t screenWidth  = 480;
-static const uint32_t screenHeight = 320;
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf[ screenWidth * 10 ];
+void controlHandler(void);
+void btnHandler(lv_obj_t *ui, String btnStatus, const char *topic);
+
+/******************************************************************************/
+/*                            EXPORTED FUNCTIONS                              */
+/******************************************************************************/
+
+/******************************************************************************/
 
 /* Display flushing */
 void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p )
@@ -129,7 +99,6 @@ void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *colo
 
    tft.startWrite();
    tft.setAddrWindow( area->x1, area->y1, w, h );
-   //tft.pushColors( ( uint16_t * )&color_p->full, w * h, true );
    tft.writePixels((lgfx::rgb565_t *)&color_p->full, w * h);
    tft.endWrite();
 
@@ -137,6 +106,7 @@ void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *colo
 }
 
 /*Read the touchpad*/
+//hàm đọc giá trị cảm ứng
 void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
 {
    if(ts.touched()){
@@ -149,6 +119,7 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
    }
 }
 
+//Kết nối với broker
 void connectBroker()
 {
   while(!client.connected())
@@ -174,6 +145,7 @@ void connectBroker()
   }
 }
 
+//hàm callback xử lý 
 void callback(char* topic, byte *payload, unsigned int length)
 {
   char status[20];
@@ -187,20 +159,17 @@ void callback(char* topic, byte *payload, unsigned int length)
   {
     status[i] = payload[i];
   }
-  Serial.println(status);
   if(String(topic) == MQTT_BTN1_TOPIC)
   {
     if(String(status) == "OFF")
     {
       btnStatus1 = "OFF";
-      Serial.println(lv_obj_get_state(ui_firstButton));
       _ui_state_modify(ui_firstButton, LV_STATE_CHECKED, 1);// _UI_STATE_MODIFY_REMOVE
       Serial.println("Living Room Light OFF");
     }
     else if(String(status) == "ON")
     {
       btnStatus1 = "ON";
-      Serial.println(lv_obj_get_state(ui_firstButton));
       if(lv_obj_get_state(ui_firstButton) == 2 || lv_obj_get_state(ui_firstButton) == 0)
       {
       _ui_state_modify(ui_firstButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
@@ -214,14 +183,12 @@ void callback(char* topic, byte *payload, unsigned int length)
     if(String(status) == "OFF")
     {
       btnStatus2 = "OFF";
-      Serial.println(lv_obj_get_state(ui_secondButton));
       _ui_state_modify(ui_secondButton, LV_STATE_CHECKED, 1);// _UI_STATE_MODIFY_REMOVE
       Serial.println("Kitchen Room Light OFF");
     }
     else if(String(status) == "ON")
     {
       btnStatus2 = "ON";
-      Serial.println(lv_obj_get_state(ui_secondButton));
       if(lv_obj_get_state(ui_secondButton) == 2 || lv_obj_get_state(ui_secondButton) == 0)
       {
         _ui_state_modify(ui_secondButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
@@ -235,14 +202,12 @@ void callback(char* topic, byte *payload, unsigned int length)
     if(String(status) == "OFF")
     {
       btnStatus3 = "OFF";
-      Serial.println(lv_obj_get_state(ui_thirdButton));
       _ui_state_modify(ui_thirdButton, LV_STATE_CHECKED, 1);// _UI_STATE_MODIFY_REMOVE
       Serial.println("Curtain Mode OFF");
     }
     else if(String(status) == "ON")
     {
       btnStatus3 = "ON";
-      Serial.println(lv_obj_get_state(ui_thirdButton));
       if(lv_obj_get_state(ui_thirdButton) == 2 || lv_obj_get_state(ui_thirdButton) == 0)
       {
         _ui_state_modify(ui_thirdButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
@@ -256,14 +221,12 @@ void callback(char* topic, byte *payload, unsigned int length)
     if(String(status) == "OFF")
     {
       btnStatus4 = "OFF";
-      Serial.println(lv_obj_get_state(ui_forthButton));
       _ui_state_modify(ui_forthButton, LV_STATE_CHECKED, 1);// _UI_STATE_MODIFY_REMOVE
       Serial.println("AC Mode OFF");
     }
     else if(String(status) == "ON")
     {
       btnStatus4 = "ON";
-      Serial.println(lv_obj_get_state(ui_forthButton));
       if(lv_obj_get_state(ui_forthButton) == 2 || lv_obj_get_state(ui_forthButton) == 0)
       {
         _ui_state_modify(ui_forthButton, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
@@ -309,8 +272,8 @@ void setup()
 
   WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED) {
-    delay(10000);
     Serial.println("Connecting to WiFi...");
+    delay(10000);
   }
 
   Serial.print("Connected to ");
@@ -353,12 +316,11 @@ void controlHandler(void)
   btnHandler(ui_secondButton, btnStatus2, MQTT_BTN2_TOPIC);
   btnHandler(ui_thirdButton, btnStatus3, MQTT_BTN3_TOPIC);
   btnHandler(ui_forthButton, btnStatus4, MQTT_BTN4_TOPIC);
-  
 }
 
 void btnHandler(lv_obj_t *ui, String btnStatus, const char *topic)
 {
-  if(lv_obj_get_state(ui) == 34 || lv_obj_get_state(ui) == 35) // state 34 35 is when touch in LCD
+  if(lv_obj_get_state(ui) == 34 || lv_obj_get_state(ui) == 35)
   {
     delay(500);
     if(btnStatus == "ON")
