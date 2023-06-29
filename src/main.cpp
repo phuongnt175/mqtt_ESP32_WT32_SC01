@@ -24,21 +24,17 @@
 /******************************************************************************/
 /*                     PRIVATE TYPES and DEFINITIONS                         */
 /******************************************************************************/
-
-#define SDA_FT6236 18
-#define SCL_FT6236 19
-
-#define MQTT_SERVER       "broker.emqx.io"
+#define MQTT_SERVER       "10.10.50.18"
 #define MQTT_PORT         1883
 
-FT6236 ts = FT6236();
 WiFiClient  wifiClient;
 PubSubClient  client(wifiClient);
 
 /******************************************************************************/
 /*                     EXPORTED TYPES and DEFINITIONS                         */
 /******************************************************************************/
-
+void controlHandler(void);
+void btnHandler(lv_obj_t *ui, String btnStatus, const char *topic);
 
 /******************************************************************************/
 /*                              PRIVATE DATA                                  */
@@ -48,8 +44,8 @@ String btnStatus2 = "OFF";
 String btnStatus3 = "OFF";
 String btnStatus4 = "OFF";
 
-const char *ssid = "LUMI_TEST";
-const char *password = "lumivn274!";
+const char *ssid = "ALL LUMI";
+const char *password = "lumivn274";
 
 const char *MQTT_BTN1_TOPIC = "MQTT_ESP32/BTN1";
 const char *MQTT_BTN2_TOPIC = "MQTT_ESP32/BTN2";
@@ -82,9 +78,6 @@ extern int brightnessValue;
 /*                            PRIVATE FUNCTIONS                               */
 /******************************************************************************/
 
-void controlHandler(void);
-void btnHandler(lv_obj_t *ui, String btnStatus, const char *topic);
-
 /******************************************************************************/
 /*                            EXPORTED FUNCTIONS                              */
 /******************************************************************************/
@@ -109,14 +102,22 @@ void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *colo
 //hàm đọc giá trị cảm ứng
 void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
 {
-   if(ts.touched()){
-     data->state = LV_INDEV_STATE_PR;
-     TS_Point p = ts.getPoint();
-     data->point.x = p.y;
-     data->point.y = tft.height() - p.x;
-   }else{
-     data->state = LV_INDEV_STATE_REL;
-   }
+  uint16_t touchX, touchY;
+
+    bool touched = tft.getTouch(&touchX, &touchY);
+
+    if (!touched)
+    {
+      data->state = LV_INDEV_STATE_REL;
+    }
+    else
+    {
+      data->state = LV_INDEV_STATE_PR;
+
+      /*Set the coordinates*/
+      data->point.x = touchX;
+      data->point.y = touchY;
+    }
 }
 
 //Kết nối với broker
@@ -245,10 +246,6 @@ void setup()
   tft.setRotation(1);
   tft.setBrightness(255);
 
-  if(!ts.begin(40, SDA_FT6236, SCL_FT6236)){
-    Serial.println("Unable to start the capacitive touch Screen.");
-  }
-
   lv_init();
   lv_disp_draw_buf_init( &draw_buf, buf, NULL, screenWidth * 10 );
 
@@ -273,7 +270,7 @@ void setup()
   WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED) {
     Serial.println("Connecting to WiFi...");
-    delay(10000);
+    delay(1000);
   }
 
   Serial.print("Connected to ");
@@ -335,3 +332,4 @@ void btnHandler(lv_obj_t *ui, String btnStatus, const char *topic)
     }
   }
 }
+
