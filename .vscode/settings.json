@@ -1,3 +1,7 @@
 {
-    "cmake.sourceDirectory": "C:/Users/admin1/Documents/PlatformIO/Projects/firstProject/lib/ui/src"
+    "cmake.sourceDirectory": "C:/Users/admin1/Documents/PlatformIO/Projects/firstProject/lib/ui/src",
+    "files.associations": {
+        "ui_helpers.h": "c",
+        "functional": "cpp"
+    }
 }
