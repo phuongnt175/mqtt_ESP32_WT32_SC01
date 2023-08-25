@@ -1,9 +1,37 @@
-#include <Mid/api/api.h>
+#include <Mid/api/Mid_api.h>
 
 const char *SSID = " ";
 const char *PWD = " ";
 const char *IPHC = " ";
 const char *MACHC = " ";
+
+extern WiFiClientSecure  net;
+extern PubSubClient client;
+
+const char key_mqtt[] PROGMEM = R"=====(
+-----BEGIN CERTIFICATE-----
+MIIDqTCCApGgAwIBAgIJAK7m4E783cWuMA0GCSqGSIb3DQEBCwUAMGsxCzAJBgNV
+BAYTAlZOMQswCQYDVQQIDAJITjELMAkGA1UEBwwCSE4xDTALBgNVBAoMBExVTUkx
+CzAJBgNVBAsMAlJEMQ4wDAYDVQQDDAVsb2NhbDEWMBQGCSqGSIb3DQEJARYHYWJj
+QDEyMzAeFw0xOTA5MjMxMDU0NDZaFw0yOTA5MjAxMDU0NDZaMGsxCzAJBgNVBAYT
+AlZOMQswCQYDVQQIDAJITjELMAkGA1UEBwwCSE4xDTALBgNVBAoMBExVTUkxCzAJ
+BgNVBAsMAlJEMQ4wDAYDVQQDDAVsb2NhbDEWMBQGCSqGSIb3DQEJARYHYWJjQDEy
+MzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALoCzS2fxY3waRvIhewR
+BIyBgkFQlagZYV7CGV0xorxHtjJs3+Q4nGxn/Xvl2dF4HE3WstJ+1JcSLYuLgpB3
+Z9es68jvlCWX4zIa8Gne27mQSncdTuRV3K038RCKD8Ms00f1xd7cQFNZCHxPSdlV
+TXydu4nXwsL8FAzOUXiHB7KT6s2F3JEPqhn9pgNGe7ciQZTfdTSEQPJ5w2wWrnnQ
+7FccMxQmyyJNMfM3cwv26yhEFTIIKX9/9JCbqe75QIyeAxoTAUmJWtMvBBjT+HJ0
+daGM1N60f6PsBYI4Y5o+NUsJa1ahPNvX44M4q/FxhbAyYOruztMyJFyYpiyxZpkO
+8QsCAwEAAaNQME4wHQYDVR0OBBYEFO6WUjahqnRNCyzA54s78gae3LTsMB8GA1Ud
+IwQYMBaAFO6WUjahqnRNCyzA54s78gae3LTsMAwGA1UdEwQFMAMBAf8wDQYJKoZI
+hvcNAQELBQADggEBAF1ElC5P2hDpnaOiFarHkkVvvwrdry3H/jCckdffkUZFoAqa
+AmeY1Zv4czcEVNDdkGh5nBSBlXxySvpR16Y6HM+4DlBlhv1FuBgR+LdHIU1jH86u
+GNFX/Fq/jMv4rxBdJP9dgWnMW2vAnucU1DHqSgDD2TDFrvuz5EJADh73FKByYG7a
+nVI0Ke+huGvqVv9ynmHBmWE1J4DjGD08IPypgTiS7GkRG3V/KpLpyV2M9FEAbmeP
+KENRFSPMPeyRyfzitR98wTtsORlF4I1+fYcPGSh0pQK1mK1X1bI/BWmtnRMqBSXD
+Eou01zV/f6o0PDqrnMlYhFi5gTg2bbqLYmLFgyw=
+-----END CERTIFICATE-----
+)=====";
 
 char ssid[eepromTextVariableSize] = " ";
 char pass[eepromTextVariableSize] = " ";
@@ -16,10 +44,9 @@ IPAddress subnet(255, 255, 255, 0);
 
 boolean accessPointMode = false; // set true every time started as AP mode
 boolean debug = true;
-unsigned long lastUpdatedTime = 0;
 
+int softApStatus = 0;
 int pushDownCounter = 0;
-int lastConnectedStatus = 0;
 
 WebServer server(80);
 StaticJsonDocument<4096> jsonDocument;
@@ -56,7 +83,7 @@ void getNetwork() {
   serializeJson(jsonDocument, g_Buffer);
   server.send(200, "application/json", g_Buffer);
 
-  ESP_LOGE("main", "Send WiFi network info");
+  ESP_LOGE("api", "Send WiFi network info");
 }
 
 void scanNetwork()
@@ -74,7 +101,7 @@ void scanNetwork()
   }
   serializeJson(jsonDocument, g_Buffer);
   server.send(200, "application/json", g_Buffer);
-  ESP_LOGE("main", "Scan WiFi");
+  ESP_LOGE("api", "Scan WiFi");
 }
 
 void handlePut()
@@ -98,28 +125,34 @@ void handlePut()
   saveHCInfoToEEPPROM((char*)IPHC, (char*)MACHC);
   readHCInfoFromEEPROM(iphc, machc);
 
-  ESP_LOGE("main", "after api ssid change to : %s", ssid);
-  ESP_LOGE("main", "after api pass change to : %s", pass);
-  ESP_LOGE("main", "IP HC: %s", iphc);
-  ESP_LOGE("main", "Mac HC: %s", machc);
+  ESP_LOGE("api", "after api ssid change to : %s", ssid);
+  ESP_LOGE("api", "after api pass change to : %s", pass);
+  ESP_LOGE("api", "IP HC: %s", iphc);
+  ESP_LOGE("api", "Mac HC: %s", machc);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
 
-  ESP_LOGE("main", "%s", ssid);
-  ESP_LOGE("main", "%s", pass);
+  ESP_LOGE("api", "%s", ssid);
+  ESP_LOGE("api", "%s", pass);
 
   if(WiFi.status() != WL_CONNECTED)
   {
-    ESP_LOGE("main", " . ");
+    ESP_LOGE("api", " . ");
     delay(500);
   }
-
-  ESP_LOGE("main", "WiFi Connected : %s", WiFi.SSID());
-  delay(500);
-  ESP.restart();
+  ESP_LOGE("api", "WiFi Connected : %s", WiFi.SSID());
+  accessPointMode = false;
+  ESP_LOGE("api", "set server");
+  net.setInsecure();
+  net.setCACert(key_mqtt);
+  client.setKeepAlive(60);
+  client.setBufferSize(4096);
+  client.setServer(iphc, 38883);
+  ESP_LOGE("api", "connect broker");
+  connectBroker();
+  ESP_LOGE("api", "end put handle");
 }
-
 
 void setupApi()
 {
@@ -128,62 +161,43 @@ void setupApi()
   if(accessPointMode == 0)
   {
     WiFi.begin(ssid, pass);
-    ESP_LOGE("main", "Connecting to WiFi...");
+    ESP_LOGE("api", "Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
-    ESP_LOGE("main", " . ");
+    ESP_LOGE("api", " . ");
     delay(500);
     i++;
     if(i == 10)
     {
-      ESP_LOGE("main", "Connect fail, wrong password, enable AP mode");
+      ESP_LOGE("api", "Connect fail, wrong password, enable AP mode");
       accessPointMode = true;
       return accessPoint_init();
     }
   }
-  ESP_LOGE("main", "WiFi Connected : %s", WiFi.SSID());
-  ESP_LOGE("main", "%s", WiFi.localIP().toString());
+  ESP_LOGE("api", "WiFi Connected : %s", WiFi.SSID());
+  ESP_LOGE("api", "%s", WiFi.localIP().toString().c_str());
   }
 }
 
 void accessPoint_init()
 {
-  WiFi.softAP("AP mode esp32", "LumiVn@2023");
+  byte mac1[6];
+  char mac1Address[18];
+  sprintf(mac1Address, "%02X:%02X", mac1[0], mac1[1], mac1[2], mac1[3], mac1[4], mac1[5]);
+  char apSSID[33];
+  sprintf(apSSID, "SwitchIP-%s", mac1Address);
+  WiFi.softAP(apSSID, "LumiVn@2023");
   if(debug)
   {
-    ESP_LOGE("main", "AccessPoint IP: %s", WiFi.softAPIP().toString());
+    ESP_LOGE("api", "AccessPoint IP: %s", WiFi.softAPIP().toString());
   }
-  ESP_LOGE("main", "Start AP mode");
+  ESP_LOGE("api", "Start AP mode");
   WiFi.softAPConfig(local_ip, gateway, subnet);
   server.on("/api/device/network", getNetwork);
   server.on("/api/device/network/scan", scanNetwork);
   server.on("/api/device/network/config", HTTP_PUT, handlePut);
   // start server
   server.begin();
-  //delay(100);
 }
-
-void checkWiFiConnection()
-{
-  if(WiFi.status() != WL_CONNECTED)
-  {
-    if(lastConnectedStatus == 1)
-    {
-      ESP_LOGE("main", "WiFi disconnected");
-    }
-    lastConnectedStatus = 0;
-    //delay(500);
-  }
-  else
-  {
-    if(lastConnectedStatus == 0)
-    {
-      ESP_LOGE("main", "WiFi connected to: %s", ssid);
-      ESP_LOGE("main", "IP address: %s", WiFi.localIP().toString());
-    }
-  lastConnectedStatus = 1;
-  }
-}
-
 
 void ui_event_resetWifi(lv_event_t * e)
 {
@@ -191,16 +205,44 @@ void ui_event_resetWifi(lv_event_t * e)
   lv_obj_t * target = lv_event_get_target(e);
   while(event_code == LV_EVENT_LONG_PRESSED) //detect button released, run the DemandWiFi function
   {
-    pushDownCounter++;
-    if (debug) ESP_LOGE("main", "%d", pushDownCounter);
-    delay(1000);
-    if (pushDownCounter == 5) { // after 2 seconds the board will be restarted
-    if (!accessPointMode) saveStatusToEeprom(2); // write the number 2 to the eeprom
-    delay(500);
-    ESP.restart();
+    switch (softApStatus)
+    {
+      case 1:
+        if (accessPointMode) saveStatusToEeprom(0);
+        delay(500);
+        softApStatus = 0;
+        lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(ui_resetWifi, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
+        return setupAP();
+      break;
+      
+      case 0:
+        if (!accessPointMode) saveStatusToEeprom(2);
+        delay(500);
+        lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0x3399FF), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(ui_resetWifi, 150, LV_PART_MAIN | LV_STATE_DEFAULT);
+        return setupAP();
+      break;
+
+      default:
+      break;
     }
+    // pushDownCounter++;
+    // if (debug) ESP_LOGE("main", "%d", pushDownCounter);
+    // delay(1000);
+    // if (pushDownCounter == 5) { // after 5 seconds the board will be restarted
+    // if (!accessPointMode) saveStatusToEeprom(2); // write the number 2 to the eeprom
+    // delay(500);
+    // pushDownCounter = 0;
+    // lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0x3399FF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    // lv_obj_set_style_bg_opa(ui_resetWifi, 150, LV_PART_MAIN | LV_STATE_DEFAULT);
+    // return setupAP();
+    // }
   }
-  pushDownCounter = 0;
+  // WiFi.softAPdisconnect(true);
+  // softApStatus = false;
+  // lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+  // lv_obj_set_style_bg_opa(ui_resetWifi, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 //====================== EEPROM necessary functions ==============
@@ -209,14 +251,14 @@ void ui_event_resetWifi(lv_event_t * e)
 //========================================== writeDefaultSettingsToEEPPROM
 void saveWiFiToEEPPROM(char* ssid_, char* pass_)
 {
-ESP_LOGE("main", "\n============ saveWiFiToEEPPROM");
+ESP_LOGE("api", "\n============ saveWiFiToEEPPROM");
 writeEEPROM((1 * eepromTextVariableSize) , eepromTextVariableSize , ssid_);
 writeEEPROM((2 * eepromTextVariableSize) , eepromTextVariableSize , pass_);
 }
 
 void saveHCInfoToEEPPROM(char* iphc_, char* machc_)
 {
-  ESP_LOGE("main", "\n============ saveHCInfoToEEPPROM");
+  ESP_LOGE("api", "\n============ saveHCInfoToEEPPROM");
   writeEEPROM((3 * eepromTextVariableSize) , eepromTextVariableSize , iphc_);
   writeEEPROM((4 * eepromTextVariableSize) , eepromTextVariableSize , machc_);
 }
@@ -224,13 +266,13 @@ void saveHCInfoToEEPPROM(char* iphc_, char* machc_)
 void readWiFiFromEEPROM(char* ssid_, char* pass_) {
 readEEPROM( (1 * eepromTextVariableSize) , eepromTextVariableSize , ssid_);
 readEEPROM( (2 * eepromTextVariableSize) , eepromTextVariableSize , pass_);
-ESP_LOGE("main", "\n============ readWiFifromEEPPROM");
+ESP_LOGE("api", "\n============ readWiFifromEEPPROM");
 }
 
 void readHCInfoFromEEPROM(char* iphc_, char* machc_) {
 readEEPROM( (3 * eepromTextVariableSize) , eepromTextVariableSize , iphc_);
 readEEPROM( (4 * eepromTextVariableSize) , eepromTextVariableSize , machc_);
-ESP_LOGE("main", "\n============ readHCInfofromEEPPROM");
+ESP_LOGE("api", "\n============ readHCInfofromEEPPROM");
 }
 
 //================================================================
@@ -280,7 +322,7 @@ void eraseEEPROM() {
 void setupAP(void)
 {
   int st = getStatusFromEeprom();
-  ESP_LOGE("main", "%d", getStatusFromEeprom());
+  ESP_LOGE("api", "%d", getStatusFromEeprom());
   if(st == 2){
     accessPointMode = true;
   } 
@@ -288,18 +330,27 @@ void setupAP(void)
     saveWiFiToEEPPROM(ssid, pass);
     saveHCInfoToEEPPROM(iphc, machc);
   }
+  else if(st == 0)
+  {
+    WiFi.enableAP(false);
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_STA); //disable softAP
+    ESP_LOGE("api", "Disable AP mode");
+    accessPointMode = false;
+  }
 
-  ESP_LOGE("main", "AP mode = %s", String(accessPointMode));
+  ESP_LOGE("api", "AP mode = %s", String(accessPointMode));
 
   readWiFiFromEEPROM(ssid, pass);
   readHCInfoFromEEPROM(iphc, machc);
-  ESP_LOGE("main", "ssid: %s", ssid);
-  ESP_LOGE("main", "pass: %s", pass);
-  ESP_LOGE("main", "IP HC: %s", iphc);
-  ESP_LOGE("main", "MAC HC: %s", machc);
+  ESP_LOGE("api", "ssid: %s", ssid);
+  ESP_LOGE("api", "pass: %s", pass);
+  ESP_LOGE("api", "IP HC: %s", iphc);
+  ESP_LOGE("api", "MAC HC: %s", machc);
 
   if(accessPointMode)
   {
+    softApStatus = 1;
     accessPoint_init();
     saveStatusToEeprom(0);
   }
