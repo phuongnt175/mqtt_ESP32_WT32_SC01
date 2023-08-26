@@ -266,7 +266,7 @@ void setup() {
   indev_drv.read_cb = my_touchpad_read;
   lv_indev_drv_register(&indev_drv);
 
-
+  ui_init(); 
   setupAP();
   setupApi();
 
@@ -280,13 +280,8 @@ void setup() {
   }
   
   mDNSService();
-  net.setInsecure();
-  net.setCACert(local_root_ca);
-  client.setKeepAlive(60);
-  client.setBufferSize(4096);
-  client.setServer(iphc, PORT);
+  setupBroker(local_root_ca, iphc, PORT);
   client.setCallback(Callback);
-  ui_init();
 }
 
 void loop() {

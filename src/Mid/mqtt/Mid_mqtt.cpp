@@ -13,7 +13,7 @@ byte mac[6];
 char macAddress[18]; // Buffer to hold the concatenated MAC address
 
 const char *MQTT_USER = "component";
-const char *MQTT_PASS = " "; // leave blank if no credentials used
+const char *MQTT_PASS = " ";
 const char *statusTopic = "component/switch_ip/status";
 const char *controlTopic = "component/switch_ip/control";
 const char *configTopic = "component/switch_ip/config";
@@ -24,7 +24,7 @@ void connectBroker()
   {
     ESP_LOGE(TAG, "Attemping MQTT connection...");
     String clientId = "SW-";
-    clientId += String(random(0xffff), HEX);
+    clientId += String(macAddress);
     if(client.connect(clientId.c_str(), MQTT_USER, MQTT_PASS))
     {
       client.subscribe(statusTopic);
@@ -43,4 +43,13 @@ void connectBroker()
       delay(200);
     }
   }
+}
+
+void setupBroker(const char *key, const char *ip, uint16_t port)
+{
+  net.setInsecure();
+  net.setCACert(key);
+  client.setKeepAlive(60);
+  client.setBufferSize(4096);
+  client.setServer(ip, port);
 }

@@ -130,28 +130,13 @@ void handlePut()
   ESP_LOGE("api", "IP HC: %s", iphc);
   ESP_LOGE("api", "Mac HC: %s", machc);
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, pass);
-
-  ESP_LOGE("api", "%s", ssid);
-  ESP_LOGE("api", "%s", pass);
-
-  if(WiFi.status() != WL_CONNECTED)
-  {
-    ESP_LOGE("api", " . ");
-    delay(500);
-  }
-  ESP_LOGE("api", "WiFi Connected : %s", WiFi.SSID());
   accessPointMode = false;
-  ESP_LOGE("api", "set server");
-  net.setInsecure();
-  net.setCACert(key_mqtt);
-  client.setKeepAlive(60);
-  client.setBufferSize(4096);
+  saveStatusToEeprom(0);
+  softApStatus = 0;
+
+  //setupBroker(key_mqtt, iphc, 38883);
   client.setServer(iphc, 38883);
-  ESP_LOGE("api", "connect broker");
-  connectBroker();
-  ESP_LOGE("api", "end put handle");
+  return setupApi();
 }
 
 void setupApi()
@@ -166,7 +151,7 @@ void setupApi()
     ESP_LOGE("api", " . ");
     delay(500);
     i++;
-    if(i == 10)
+    if(i == 20)
     {
       ESP_LOGE("api", "Connect fail, wrong password, enable AP mode");
       accessPointMode = true;
@@ -175,6 +160,9 @@ void setupApi()
   }
   ESP_LOGE("api", "WiFi Connected : %s", WiFi.SSID());
   ESP_LOGE("api", "%s", WiFi.localIP().toString().c_str());
+
+  lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_bg_opa(ui_resetWifi, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
   }
 }
 
@@ -182,9 +170,10 @@ void accessPoint_init()
 {
   byte mac1[6];
   char mac1Address[18];
-  sprintf(mac1Address, "%02X:%02X", mac1[0], mac1[1], mac1[2], mac1[3], mac1[4], mac1[5]);
+  WiFi.macAddress(mac1);
+  sprintf(mac1Address, "%02X:%02X", mac1[4], mac1[5]);
   char apSSID[33];
-  sprintf(apSSID, "SwitchIP-%s", mac1Address);
+  sprintf(apSSID, "SwitchIP_%s", mac1Address);
   WiFi.softAP(apSSID, "LumiVn@2023");
   if(debug)
   {
