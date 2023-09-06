@@ -26,7 +26,31 @@ lv_obj_t * ui_button2;
 lv_obj_t * ui_button3;
 lv_obj_t * ui_button4;
 void ui_event_resetWifi(lv_event_t * e);
+void ui_event_sceneSetting(lv_event_t * e);
+lv_obj_t * ui_sceneSetting;
 lv_obj_t * ui_resetWifi;
+lv_obj_t * ui_Notify;
+lv_obj_t * ui_mqttNotify;
+lv_obj_t * ui_mqttText;
+lv_obj_t * ui_ok;
+lv_obj_t * ui_okText;
+lv_obj_t * ui_deleteNotify;
+void ui_event_ok(lv_event_t * e);
+
+// SCREEN: ui_SettingScreen
+void ui_SettingScreen_screen_init(void);
+lv_obj_t * ui_SettingScreen;
+lv_obj_t * ui_scene1;
+lv_obj_t * ui_canh1;
+lv_obj_t * ui_scene2;
+lv_obj_t * ui_canh2;
+lv_obj_t * ui_scene3;
+lv_obj_t * ui_canh3;
+lv_obj_t * ui_scene4;
+lv_obj_t * ui_canh4;
+lv_obj_t * ui_back;
+void ui_event_back(lv_event_t * e);
+
 lv_obj_t * ui____initial_actions0;
 
 ///////////////////// TEST LVGL SETTINGS ////////////////////
@@ -49,6 +73,33 @@ void ui_event_lumiScreen(lv_event_t * e)
     }
 }
 
+void ui_event_ok(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_PRESSED) {
+        _ui_flag_modify(ui_mqttNotify, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+    }
+}
+
+void ui_event_sceneSetting(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_SettingScreen, LV_SCR_LOAD_ANIM_FADE_ON, 150, 0, &ui_SettingScreen_screen_init);
+    }
+}
+
+void ui_event_back(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_CLICKED) {
+        _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_FADE_ON, 150, 0, &ui_mainScreen_screen_init);
+    }
+}
+
 ///////////////////// SCREENS ////////////////////
 
 void ui_init(void)
@@ -59,6 +110,7 @@ void ui_init(void)
     lv_disp_set_theme(dispp, theme);
     ui_lumiScreen_screen_init();
     ui_mainScreen_screen_init();
+    ui_SettingScreen_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_lumiScreen);
 }

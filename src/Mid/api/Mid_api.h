@@ -1,3 +1,18 @@
+ /* File name: 
+ *
+ * Description:
+ *
+ *
+ * Last Changed By:  $Author: PhuongNT$
+ * Revision:         $Revision: $
+ * Last Changed:     $Date: $August 28, 2023
+ *
+ * Code sample:
+ ******************************************************************************/
+/******************************************************************************/
+/*                              INCLUDE FILES                                 */
+/******************************************************************************/
+
 #include <WebServer.h>
 #include <ArduinoJson.h>
 #include <EEPROM.h>
@@ -6,9 +21,16 @@
 #include <WiFi.h>
 #include <Mid/mqtt/Mid_mqtt.h>
 
+/******************************************************************************/
+/*                     PRIVATE TYPES and DEFINITIONS                         */
+/******************************************************************************/
+
 #define eepromTextVariableSize 33
 
-//=======================================================================================
+/******************************************************************************/
+/*                            EXPORTED FUNCTIONS                              */
+/******************************************************************************/
+
 void saveWiFiToEEPPROM(char* ssid_, char* pass_);
 void readWiFiFromEEPROM(char* ssid_, char* pass_);
 void saveHCInfoToEEPPROM(char* iphc_, char* machc_);
@@ -30,3 +52,5 @@ void getNetwork();
 void scanNetwork();
 void handlePut();
 void setupApi();
+
+/******************************************************************************/

@@ -1,6 +1,24 @@
+ /* File name: 
+ *
+ * Description:
+ *
+ *
+ * Last Changed By:  $Author: PhuongNT$
+ * Revision:         $Revision: $
+ * Last Changed:     $Date: $August 28, 2023
+ *
+ * Code sample:
+ ******************************************************************************/
+/******************************************************************************/
+/*                              INCLUDE FILES                                 */
+/******************************************************************************/
 #include <Mid/jsonMessage/Mid_jsonMessage.h>
 
-void generateJsonCommandPost(const String& bridgeKey, const String& reqId, char jsonString[4096], char *macDevice) 
+/******************************************************************************/
+/*                            EXPORTED FUNCTIONS                              */
+/******************************************************************************/
+
+void generateJsonCommandPost(const String& bridgeKey, const String& reqId, JsonArray ruleConfig, char jsonString[4096], char *macDevice) 
 {
   StaticJsonDocument<4096> doc;
   
@@ -17,30 +35,38 @@ void generateJsonCommandPost(const String& bridgeKey, const String& reqId, char 
     dataItem["type"] = "SWITCH";
     dataItem["brigde_key"] = bridgeKey;
     dataItem["hash"] = bridgeKey + String("-") + String(macDevice) + String("-") + String(i); //get mac
+    //dataItem["mac"] = String(macDevice);
+    dataItem["macdev"] = String(macDevice);
 
     JsonObject attr = dataItem.createNestedObject("attr");
-    attr["McuInfo"]["GlassType"] = 2;
-    attr["McuInfo"]["RelayType"] = 0;
+    attr["deviceInfo"]["ApplicationVer"] = "1";
     attr["deviceInfo"]["Manufacturer"] = "Lumi R&D";
     attr["deviceInfo"]["ModelId"] = "LM-SZDM4";
-    attr["sceneConfig"]["lock_touch"] = false;
-    attr["sceneConfig"]["output"]["delay"] = 0;
-    attr["sceneConfig"]["output"]["mode"] = 0;
-    attr["sceneConfig"]["touch_mode"] = 0;
+
+    JsonObject sceneConfig = attr.createNestedObject("sceneConfig");
+    sceneConfig["ruleConfig"] = ruleConfig;
+
     // Create sceneSetting array and add objects
     JsonArray sceneSetting = attr.createNestedArray("sceneSetting");
-    JsonObject sceneSettingItem1 = sceneSetting.createNestedObject();
-    sceneSettingItem1["name"] = "lock_touch";
-    JsonObject sceneSettingItem2 = sceneSetting.createNestedObject();
-    sceneSettingItem2["name"] = "touch_mode";
+    JsonObject sceneSettingItem = sceneSetting.createNestedObject();
+    sceneSettingItem["name"] = "ruleConfig";
     JsonArray traits = dataItem.createNestedArray("traits");
     JsonObject trait = traits.createNestedObject();
     trait["is_main"] = true;
     trait["name"] = "OnOff";
 
+    JsonObject config = dataItem.createNestedObject("config");
+
+    JsonObject deviceInfo = dataItem.createNestedObject("deviceInfo");
+    deviceInfo["ApplicationVer"] = "1";
+    deviceInfo["DataCode"] = " ";
+    deviceInfo["HardwareVer"] = " ";
+    deviceInfo["Manufacturer"] = " ";
+    deviceInfo["ModelId"] = " ";
+    deviceInfo["DeviceIPVersion"] = "3.0";
+  }
     doc["reqid"] = reqId;
     doc["source"] = bridgeKey;
-  }
   serializeJson(doc, jsonString, 4096);
 }
 
@@ -148,3 +174,26 @@ void responseGetStatus(const String& bridgeKey, const String& reqId, char jsonSt
   // Serialize the JSON document to a string
   serializeJson(doc, jsonString, 4096);
 }
+
+void setRuleCmd(const String& reqId ,char jsonString[], char ruleId[], char* macDevice) {
+
+  StaticJsonDocument<1024> doc;
+  doc.clear();
+
+  doc["cmd"] = "set";
+
+  JsonArray objects = doc.createNestedArray("objects");
+  JsonObject object = objects.createNestedObject();
+
+  object["type"] = "rules";
+
+  JsonArray data = object.createNestedArray("data");
+  data.add(ruleId);
+
+  doc["reqid"] = reqId;
+  doc["source"] = macDevice;
+
+  serializeJson(doc, jsonString, 1024);
+}
+
+/******************************************************************************/

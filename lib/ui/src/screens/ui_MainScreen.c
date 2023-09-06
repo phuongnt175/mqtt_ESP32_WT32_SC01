@@ -98,10 +98,92 @@ void ui_mainScreen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_resetWifi, 150, LV_STATE_CHECKED);
     lv_obj_set_style_bg_img_src(ui_resetWifi, &ui_img_1968931049, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_Notify = lv_obj_create(ui_mainScreen);
+    lv_obj_set_width(ui_Notify, 308);
+    lv_obj_set_height(ui_Notify, 204);
+    lv_obj_set_align(ui_Notify, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_Notify, LV_OBJ_FLAG_HIDDEN);     /// Flags
+    lv_obj_clear_flag(ui_Notify, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK | LV_OBJ_FLAG_CLICK_FOCUSABLE |
+                      LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
+                      LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
+    lv_obj_set_style_radius(ui_Notify, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_Notify, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_Notify, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_Notify, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_deleteNotify = lv_label_create(ui_Notify);
+    lv_obj_set_width(ui_deleteNotify, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_deleteNotify, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_align(ui_deleteNotify, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_deleteNotify, "   Device just \ngot delete from HC.");
+    lv_obj_set_style_text_font(ui_deleteNotify, &lv_font_montserrat_22, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_mqttNotify = lv_obj_create(ui_mainScreen);
+    lv_obj_set_width(ui_mqttNotify, 308);
+    lv_obj_set_height(ui_mqttNotify, 204);
+    lv_obj_set_align(ui_mqttNotify, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_mqttNotify, LV_OBJ_FLAG_HIDDEN);     /// Flags
+    lv_obj_clear_flag(ui_mqttNotify, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK | LV_OBJ_FLAG_CLICK_FOCUSABLE |
+                      LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
+                      LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
+    lv_obj_set_style_radius(ui_mqttNotify, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_mqttNotify, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_mqttNotify, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_mqttNotify, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+
+    ui_mqttText = lv_label_create(ui_mqttNotify);
+    lv_obj_set_width(ui_mqttText, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_mqttText, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_mqttText, 0);
+    lv_obj_set_y(ui_mqttText, -30);
+    lv_obj_set_align(ui_mqttText, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_mqttText, "Can't connect to \n			 HC MQTT");
+    lv_obj_set_style_text_font(ui_mqttText, &lv_font_montserrat_22, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_ok = lv_btn_create(ui_mqttNotify);
+    lv_obj_set_width(ui_ok, 100);
+    lv_obj_set_height(ui_ok, 50);
+    lv_obj_set_x(ui_ok, 0);
+    lv_obj_set_y(ui_ok, 50);
+    lv_obj_set_align(ui_ok, LV_ALIGN_CENTER);
+    lv_obj_clear_flag(ui_ok, LV_OBJ_FLAG_PRESS_LOCK | LV_OBJ_FLAG_CLICK_FOCUSABLE | LV_OBJ_FLAG_GESTURE_BUBBLE |
+                      LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
+                      LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
+    lv_obj_set_style_radius(ui_ok, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_ok, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_ok, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(ui_ok, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(ui_ok, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_ok, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_okText = lv_label_create(ui_ok);
+    lv_obj_set_width(ui_okText, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_okText, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_align(ui_okText, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_okText, "OK");
+    lv_obj_set_style_text_font(ui_okText, &lv_font_montserrat_22, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_sceneSetting = lv_btn_create(ui_mainScreen);
+    lv_obj_set_width(ui_sceneSetting, 50);
+    lv_obj_set_height(ui_sceneSetting, 50);
+    lv_obj_set_x(ui_sceneSetting, 0);
+    lv_obj_set_y(ui_sceneSetting, 20);
+    lv_obj_set_align(ui_sceneSetting, LV_ALIGN_CENTER);
+    lv_obj_clear_flag(ui_sceneSetting, LV_OBJ_FLAG_PRESS_LOCK | LV_OBJ_FLAG_CLICK_FOCUSABLE | LV_OBJ_FLAG_GESTURE_BUBBLE |
+                      LV_OBJ_FLAG_SNAPPABLE | LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
+                      LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
+    lv_obj_set_style_radius(ui_sceneSetting, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_sceneSetting, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_sceneSetting, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_img_src(ui_sceneSetting, &ui_img_1772094659, LV_PART_MAIN | LV_STATE_DEFAULT);
+
     lv_obj_add_event_cb(ui_resetWifi, ui_event_resetWifi, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_button1, ui_event_button1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_button2, ui_event_button2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_button3, ui_event_button3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_button4, ui_event_button4, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ok, ui_event_ok, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_sceneSetting, ui_event_sceneSetting, LV_EVENT_ALL, NULL);
 
 }

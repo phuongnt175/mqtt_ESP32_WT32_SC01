@@ -1,13 +1,22 @@
+ /* File name: 
+ *
+ * Description:
+ *
+ *
+ * Last Changed By:  $Author: PhuongNT$
+ * Revision:         $Revision: $
+ * Last Changed:     $Date: $April 28, 2023
+ *
+ * Code sample:
+ ******************************************************************************/
+/******************************************************************************/
+/*                              INCLUDE FILES                                 */
+/******************************************************************************/
 #include <Mid/api/Mid_api.h>
 
-const char *SSID = " ";
-const char *PWD = " ";
-const char *IPHC = " ";
-const char *MACHC = " ";
-
-extern WiFiClientSecure  net;
-extern PubSubClient client;
-
+/******************************************************************************/
+/*                     PRIVATE TYPES and DEFINITIONS                         */
+/******************************************************************************/
 const char key_mqtt[] PROGMEM = R"=====(
 -----BEGIN CERTIFICATE-----
 MIIDqTCCApGgAwIBAgIJAK7m4E783cWuMA0GCSqGSIb3DQEBCwUAMGsxCzAJBgNV
@@ -33,6 +42,11 @@ Eou01zV/f6o0PDqrnMlYhFi5gTg2bbqLYmLFgyw=
 -----END CERTIFICATE-----
 )=====";
 
+const char *SSID = " ";
+const char *PWD = " ";
+const char *IPHC = " ";
+const char *MACHC = " ";
+
 char ssid[eepromTextVariableSize] = " ";
 char pass[eepromTextVariableSize] = " ";
 char iphc[eepromTextVariableSize] = " ";
@@ -52,7 +66,18 @@ WebServer server(80);
 StaticJsonDocument<4096> jsonDocument;
 
 char g_Buffer[4096];
- 
+char empty[] = " ";
+
+/******************************************************************************/
+/*                     EXPORTED TYPES and DEFINITIONS                         */
+/******************************************************************************/
+extern WiFiClientSecure  net;
+extern PubSubClient client;
+
+/******************************************************************************/
+/*                            EXPORTED FUNCTIONS                              */
+/******************************************************************************/
+
 void addJsonObjectNet(String dns, String gw, String ssid, String ip, String netmask)
 {
   JsonObject obj = jsonDocument.createNestedObject();
@@ -133,8 +158,10 @@ void handlePut()
   accessPointMode = false;
   saveStatusToEeprom(0);
   softApStatus = 0;
+  WiFi.enableAP(false);
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA); //disable softAP
 
-  //setupBroker(key_mqtt, iphc, 38883);
   client.setServer(iphc, 38883);
   return setupApi();
 }
@@ -151,7 +178,7 @@ void setupApi()
     ESP_LOGE("api", " . ");
     delay(500);
     i++;
-    if(i == 20)
+    if(i == 10)
     {
       ESP_LOGE("api", "Connect fail, wrong password, enable AP mode");
       accessPointMode = true;
@@ -216,22 +243,7 @@ void ui_event_resetWifi(lv_event_t * e)
       default:
       break;
     }
-    // pushDownCounter++;
-    // if (debug) ESP_LOGE("main", "%d", pushDownCounter);
-    // delay(1000);
-    // if (pushDownCounter == 5) { // after 5 seconds the board will be restarted
-    // if (!accessPointMode) saveStatusToEeprom(2); // write the number 2 to the eeprom
-    // delay(500);
-    // pushDownCounter = 0;
-    // lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0x3399FF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    // lv_obj_set_style_bg_opa(ui_resetWifi, 150, LV_PART_MAIN | LV_STATE_DEFAULT);
-    // return setupAP();
-    // }
   }
-  // WiFi.softAPdisconnect(true);
-  // softApStatus = false;
-  // lv_obj_set_style_bg_color(ui_resetWifi, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-  // lv_obj_set_style_bg_opa(ui_resetWifi, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 //====================== EEPROM necessary functions ==============
@@ -300,6 +312,10 @@ return value;
 
 void eraseEEPROM() {
   EEPROM.begin(eepromBufferSize);
+  saveWiFiToEEPPROM(empty, empty);
+  saveHCInfoToEEPPROM(empty, empty);
+  readWiFiFromEEPROM(ssid, pass);
+  readHCInfoFromEEPROM(iphc, machc);
   for (int address = 0; address < eepromBufferSize; address++) {
     EEPROM.write(address, 0);
   }
@@ -349,3 +365,5 @@ void handleAP()
 {
   server.handleClient();
 }
+
+/******************************************************************************/

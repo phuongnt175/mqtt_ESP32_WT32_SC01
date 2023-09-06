@@ -33,6 +33,7 @@
 /******************************************************************************/
 extern boolean accessPointMode;
 extern char iphc[eepromTextVariableSize];
+extern char machc[eepromTextVariableSize];
 
 extern String bridgeKey;
 extern String reqId;
@@ -51,6 +52,8 @@ const char *ep1 = "-1";
 const char *ep2 = "-3";
 const char *ep3 = "-5";
 const char *ep4 = "-7";
+
+const char *ruleId;
 
 long lastTime = 0;
 
@@ -106,12 +109,11 @@ extern lv_obj_t* ui_resetWifi;
 /*                            PRIVATE FUNCTIONS                               */
 /******************************************************************************/
 void mDNSService();
+void checkIpHCmDNS();
 void ui_event_button(lv_event_t *e, ButtonStatus& btn_status, char *ep);
 
 /******************************************************************************/
 /*                            EXPORTED FUNCTIONS                              */
-/******************************************************************************/
-
 /******************************************************************************/
 
 /* Display flushing */
@@ -147,28 +149,23 @@ void subCallback(lv_obj_t *ui, char* message, ButtonStatus& btn_status, const ch
 {
   if(strstr(message, ON_MSG) != NULL)
   {
-    ESP_LOGE("main", "ON");
     btn_status = ON;
     if(lv_obj_get_state(ui) == 6 || lv_obj_get_state(ui) == 0)
     {
       generateJsonCmdStatus(bridgeKey, reqId, output, macAddress, ep, true);
       client.publish(statusTopic, output);
-      _ui_state_modify(ui, LV_STATE_CHECKED, 2);// _UI_STATE_MODIFY_TOGGLE
+      _ui_state_modify(ui, LV_STATE_CHECKED, _UI_MODIFY_STATE_TOGGLE);
     }
-    ESP_LOGE("main", "-------------------------------------------------------------");
   }
   else if(strstr(message, OFF_MSG) != NULL)
   {
-    ESP_LOGE("main", "OFF");
     btn_status = OFF;
     if(lv_obj_get_state(ui) == 7 || lv_obj_get_state(ui) == 1)
     {
       generateJsonCmdStatus(bridgeKey, reqId, output, macAddress, ep, false);
       client.publish(statusTopic, output);
       lv_obj_clear_state(ui, LV_STATE_CHECKED);
-      // _ui_state_modify(ui, LV_STATE_CHECKED, 1);// _UI_STATE_MODIFY_REMOVE
     }
-    ESP_LOGE("main", "-------------------------------------------------------------");
   }
 }
 
@@ -192,7 +189,7 @@ void Callback(char* topic, byte* payload, unsigned int length) {
   std::string s_ep3 = std::string(endpoint3);
   std::string s_ep4 = std::string(endpoint4);
 
-  if(String(topic) == controlTopic && strstr(message, "set") != NULL) //
+  if(String(topic) == controlTopic && strstr(message, "set") != NULL) //response status when app send control message
   {
     
     if(json.find(s_ep1)!= std::string::npos)
@@ -228,11 +225,51 @@ void Callback(char* topic, byte* payload, unsigned int length) {
     {
       ESP_LOGE("main", "disconnected");
       eraseEEPROM();
-      client.disconnect(); //disconnect from mqtt
-      ESP.restart();
-
+      WiFi.disconnect(true);// disconnect wifi 
+      client.disconnect(); // disconnect mqtt
+      _ui_flag_modify(ui_Notify, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE); //display Notify
+      return setupApi(); // check wifi connection and active softAP
     }
   }
+
+  if(String(topic) == configTopic && strstr(message, "set_scene") != NULL)
+  {
+    //write your code here
+    const size_t jsonSize = strlen(message) + 1; // Add 1 for null terminator
+    char* json = new char[jsonSize];
+    strncpy(json, message, jsonSize);
+
+    StaticJsonDocument<1024> doc;
+    DeserializationError error = deserializeJson(doc, json);
+    if (error) {
+      ESP_LOGE("main", "deserializeJson() failed: %s", error.c_str());
+    }
+
+    int enable = doc["objects"][0]["data"][0]["params"][0]["ruleconfig"][0]["enable"];
+    const char *name = doc["objects"][0]["data"][0]["name"];
+    ruleId = doc["objects"][0]["data"][0]["params"][0]["ruleconfig"][0]["ruleid"];
+    ESP_LOGE("main", "%s", name);
+    JsonArray ruleconfig = doc["objects"][0]["data"][0]["params"][0]["ruleconfig"].as<JsonArray>();
+    _ui_flag_modify(ui_scene1, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+    _ui_flag_modify(ui_scene1, LV_OBJ_FLAG_CLICKABLE, _UI_MODIFY_FLAG_ADD);
+    if(enable == 0) {
+      _ui_state_modify(ui_scene1, LV_STATE_DISABLED, _UI_MODIFY_STATE_ADD);
+    }
+    else {
+    delete[] json;
+      _ui_state_modify(ui_scene1, LV_STATE_DISABLED, _UI_MODIFY_STATE_REMOVE);
+    }
+    generateJsonCommandPost(bridgeKey, reqId, ruleconfig, output, macAddress);
+    client.publish(configTopic, output);
+  }
+}
+
+void uiTask(void *pvParameters)
+{
+    while (1) {
+        lv_timer_handler();
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
 
 void setup() {
@@ -246,6 +283,7 @@ void setup() {
   digitalWrite(45, 128);
 
   lv_init();
+  xTaskCreate(uiTask, "uiTask", 10000, NULL, 2, NULL);
   lv_disp_draw_buf_init( &draw_buf, buf, NULL, screenWidth * 10 );
 
   /*Initialize the display*/
@@ -266,7 +304,7 @@ void setup() {
   indev_drv.read_cb = my_touchpad_read;
   lv_indev_drv_register(&indev_drv);
 
-  ui_init(); 
+  ui_init();
   setupAP();
   setupApi();
 
@@ -294,6 +332,7 @@ void loop() {
     if(accessPointMode == false)
     {
       connectBroker();
+      checkIpHCmDNS();
     }
   }
   else{
@@ -306,6 +345,7 @@ void loop() {
     client.publish(statusTopic, output);
     lastTime = now;
   }
+  vTaskDelay(pdMS_TO_TICKS(100));
 }
 
 void mDNSService()
@@ -322,12 +362,41 @@ void mDNSService()
     ESP_LOGE("main", "Number of services found: %d", nrOfServices);
     for (int i = 0; i < nrOfServices; i=i+1) 
     {
-      ESP_LOGE("main", "---------------");
+      ESP_LOGE("main", " ");
       ESP_LOGE("main", "Hostname: %s", MDNS.hostname(i));
       ESP_LOGE("main", "IP address: %s", MDNS.IP(i).toString().c_str());
       ESP_LOGE("main", "Port: %d", MDNS.port(i));
       ESP_LOGE("main", "MAC: %s", MDNS.txt(i, "mac").c_str());
-      ESP_LOGE("main", "---------------");
+    }
+  }
+}
+
+void checkIpHCmDNS()
+{
+  int nrOfServices = MDNS.queryService("lumismarthome", SERVICE_PROTOCOL);
+  if (nrOfServices == 0) {
+    return;
+  } 
+  else {
+    ESP_LOGE("main", "Number of services found: %d", nrOfServices);
+    for (int i = 0; i < nrOfServices; i++) 
+    {
+      String macString = MDNS.txt(i, "mac");
+      for (int j = 0; j < 18; j++) {
+        macString[j] = toupper(macString[j]);
+      }
+      const char* scanMac = macString.c_str();
+      ESP_LOGE("main", "%s", scanMac);
+      char scanIP[16];
+      sprintf(scanIP, "%s", MDNS.IP(i).toString().c_str());
+      ESP_LOGE("main", "%s", scanIP);
+      if(strcmp(machc, scanMac) == 0)
+      {
+        saveHCInfoToEEPPROM(scanIP, machc);
+        readHCInfoFromEEPROM(iphc, machc);
+        client.setServer(iphc, PORT);
+        ESP_LOGE("main", "change iphc");
+      }
     }
   }
 }
@@ -368,3 +437,5 @@ void ui_event_button3(lv_event_t *e) {
 void ui_event_button4(lv_event_t *e) {
   ui_event_button(e, btnStatus4, ep4);
 }
+
+/******************************************************************************/
