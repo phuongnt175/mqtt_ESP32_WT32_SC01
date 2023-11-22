@@ -22,7 +22,8 @@
 /*                            EXPORTED FUNCTIONS                              */
 /******************************************************************************/
 
+String randomReqId(int length, String& reqId);
 void connectBroker();
-void setupBroker(const char *key, const char *ip, uint16_t port);
+void jsonPostCmdTask(void* pvParameters);
 
 /******************************************************************************/

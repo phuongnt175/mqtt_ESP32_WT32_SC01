@@ -20,60 +20,99 @@
 WiFiClientSecure  net;
 PubSubClient      client(net);
 
-String bridgeKey = "switchIP";
-String reqId = "abcxyz";
+char TAG[] = "mqtt";
 
-JsonArray ruleconfig;
+String bridgeKey = "deviceIP";
+String reqId;
+
+TaskHandle_t postHandle;
+
+bool receivedAckMessage = false;
 
 char output[4096];
-char TAG[] = "mqtt";
+byte mac[6];
 char macAddress[18]; // Buffer to hold the concatenated MAC address
 
-byte mac[6];
-
 const char *MQTT_USER = "component";
-const char *MQTT_PASS = " ";
-const char *statusTopic = "component/switchIP/status";
-const char *controlTopic = "component/switchIP/control";
-const char *configTopic = "component/switchIP/config";
+const char *MQTT_PASS = " "; // leave blank if no credentials used
+char statusTopic[50];
+char controlTopic[50];
+char configTopic[50];
+char deviceTopic[50];
 
 /******************************************************************************/
 /*                            EXPORTED FUNCTIONS                              */
 /******************************************************************************/
+
+String randomReqId(int length, String& reqId) {
+  String characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  
+  reqId = "";
+
+  for (int i = 0; i < length; i++) {
+    reqId += characters[random(0, characters.length())];
+  }
+  return reqId;
+}
+
 void connectBroker()
 {
   ESP_LOGE(TAG, "Attemping MQTT connection...");
   String clientId = "SW-";
-  clientId += String(macAddress);
+  clientId += String(random(0xffff), HEX);
   if(client.connect(clientId.c_str(), MQTT_USER, MQTT_PASS))
   {
     client.subscribe(statusTopic);
     client.subscribe(controlTopic);
     client.subscribe(configTopic);
+    client.subscribe(deviceTopic);
     ESP_LOGE(TAG, "Connected");
-    _ui_flag_modify(ui_Notify, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-    _ui_flag_modify(ui_mqttNotify, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-    generateJsonCommandPost(bridgeKey.c_str(), reqId.c_str(), ruleconfig, output, macAddress);
-    client.publish(configTopic, output);
-    responseGetStatus(bridgeKey, reqId, output, macAddress);
-    client.publish(statusTopic, output);
+    if (postHandle == NULL) {
+      xTaskCreate(jsonPostCmdTask, "JsonPostTask", 10000, NULL, 1, &postHandle);
+    }
   }
   else
   {
-    _ui_flag_modify(ui_mqttNotify, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
     ESP_LOGE(TAG, "Error rc = %d", client.state());
     ESP_LOGE(TAG, "try again in 2 seconds");
     delay(200);
   }
 }
 
-void setupBroker(const char *key, const char *ip, uint16_t port)
-{
-  net.setInsecure();
-  net.setCACert(key);
-  client.setKeepAlive(60);
-  client.setBufferSize(4096);
-  client.setServer(ip, port);
+void jsonPostCmdTask(void* pvParameters) {
+
+  const TickType_t delayPeriod = pdMS_TO_TICKS(5000); // 5 seconds
+
+  String ruleConfig;
+  ruleConfig = readJsonFromFile("/data.txt");
+  
+  int attemptCount = 0;
+  bool stopTask = false;
+
+  while (attemptCount < 5 && stopTask == false) {
+    ESP_LOGE("mqtt", "%d", receivedAckMessage);
+    // Check for acknowledgement message
+    if (receivedAckMessage == true) {
+
+      randomReqId( 15, reqId);
+      responseGetStatus(bridgeKey, reqId, output, macAddress);
+      client.publish(statusTopic, output);
+
+      stopTask = true; // Set stopTask flag to true to exit the loop
+    } else {
+      randomReqId( 15, reqId);
+      ESP_LOGE("mqtt", "reqId: %s", reqId.c_str());
+      generateJsonCommandPost(bridgeKey, reqId, output, macAddress);
+      client.publish(configTopic, output);
+      attemptCount++;
+      if (receivedAckMessage == false) {
+        vTaskDelay(delayPeriod);
+      }
+    }
+  }
+
+  vTaskDelete(postHandle);
+  ESP_LOGE("main", "delete postHandle");
 }
 
 /******************************************************************************/

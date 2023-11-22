@@ -14,6 +14,12 @@
 /******************************************************************************/
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <string>
+#include <Mid/jsonMessage/Mid_jsonMessage.h>
+#include <Mid/mqtt/Mid_mqtt.h>
+#include <Mid/api/Mid_api.h>
 
 /******************************************************************************/
 /*                            EXPORTED FUNCTIONS                              */
