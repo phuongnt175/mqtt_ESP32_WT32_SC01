@@ -15,7 +15,7 @@
 #include <ArduinoJson.h>
 #include <ui.h>
 #include <FS.h>
-#include <LITTLEFS.h>
+#include <LittleFS.h>
 
 /******************************************************************************/
 /*                            EXPORTED FUNCTIONS                              */
